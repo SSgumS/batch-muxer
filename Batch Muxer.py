@@ -37,7 +37,7 @@ def remove_before_extension(path: str, postfix: str, escape: bool = True):
 
 
 def ensure_space(path: str):
-    if path[-1] != " .mkv":
+    if path[-5:] != " .mkv":
         path = re.sub(r"\.mkv$", " .mkv", path)
     return path
 

@@ -20,7 +20,7 @@ def get_crc(file_path: str):
     with open(file_path, "rb") as file:
         file_content = file.read()
         crc = zlib.crc32(file_content)
-    return "{:X}".format(crc)
+    return f"{crc:08X}"
 
 
 def add_before_extension(path: str, postfix: str):
@@ -49,7 +49,7 @@ parser.add_argument(
     help="Folder path",
 )
 parser.add_argument(
-    "command",
+    "--command",
     help="Command pattern",
 )
 parser.add_argument(
@@ -60,13 +60,19 @@ parser.add_argument(
     action="store_true",
     help="Do not remove old crc",
 )
+parser.add_argument(
+    "--in-place",
+    action="store_true",
+    help="Do jobs in-place",
+)
 args = parser.parse_args()
 
 # Check command pattern
-placeholders = [input_placeholder, output_placeholder]
-for placeholder in placeholders:
-    if args.command.count(placeholder) > 1:
-        raise ValueError(f"Command pattern must contain a {placeholder}!")
+if args.command is not None:
+    placeholders = [input_placeholder, output_placeholder]
+    for placeholder in placeholders:
+        if args.command.count(placeholder) < 1:
+            raise ValueError(f"Command pattern must contain a {placeholder}!")
 
 temp_postfix = ".temp"
 
@@ -76,16 +82,23 @@ for file_name in os.listdir(args.folder):
     if os.path.isdir(input_path):
         continue
     # Create output folder
-    output_folder_path = os.path.join(args.folder, "out")
+    if args.in_place:
+        output_folder_path = args.folder
+    else:
+        output_folder_path = os.path.join(args.folder, "out")
     os.makedirs(output_folder_path, exist_ok=True)
     # Remove old crc
     if not args.do_not_remove_old_crc:
         file_name = remove_before_extension(file_name, r"\[[^]]*\]", False)
-    # Mux
-    temp_path = os.path.join(
-        output_folder_path, add_before_extension(file_name, temp_postfix)
-    )
-    run_command(input_path, temp_path, args.command)
+    # Set intermediate path
+    if args.command is None:
+        temp_path = input_path
+    else:
+        temp_path = os.path.join(
+            output_folder_path, add_before_extension(file_name, temp_postfix)
+        )
+        # Mux
+        run_command(input_path, temp_path, args.command)
     # Create output path (with crc)
     output_path = os.path.join(output_folder_path, file_name)
     if not args.no_space_before_crc:
